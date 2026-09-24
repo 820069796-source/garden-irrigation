@@ -2,587 +2,133 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>智能浇水系统</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>花园智能浇水</title>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-
 <style>
-body{
-    font-family:Arial;
-    background:#f5f5f5;
-    margin:0;
-    padding:15px;
-}
-.card{
-    background:#fff;
-    border-radius:12px;
-    padding:15px;
-    margin-bottom:15px;
-    box-shadow:0 2px 8px rgba(0,0,0,.1);
-}
-.value{
-    font-size:26px;
-    font-weight:bold;
-}
-.online{color:#00aa00;}
-.offline{color:red;}
+*{box-sizing:border-box}
+body{margin:0;background:#f5f5f5;font-family:Arial,"Microsoft YaHei",sans-serif;color:#222}
+.page{max-width:520px;margin:auto;padding:18px 14px 34px}
+h1{text-align:center;font-size:25px;margin:4px 0 24px}
+.section-title{font-size:17px;font-weight:700;margin:18px 2px 10px}
+.box,.zone-card,.env-card,.other-card{background:#fff;border-radius:12px;box-shadow:0 2px 9px rgba(0,0,0,.07)}
+.box{padding:14px 16px}
+.mode{font-size:18px;font-weight:700}
+.green{color:#18a83a}.blue{color:#2196f3}.gray{color:#999}.red{color:#e53935}
+.zone-card{display:none;margin:10px 0;padding:15px;border-left:5px solid #4caf50}
+.zone-grid{display:grid;grid-template-columns:minmax(0,1fr) 145px;gap:18px}
+.zone-title{font-size:18px;font-weight:700;margin-bottom:10px}
+.zone-status{font-size:14px;margin-bottom:10px}
+.meta{font-size:13px;color:#777;line-height:1.65}
+.soil-title{font-size:14px;font-weight:700}
+.soil-status{font-size:13px;margin-top:5px}
+.soil-value{font-size:24px;font-weight:700;margin-top:5px}
+.bar{height:7px;background:#e7e7e7;border-radius:8px;overflow:hidden;margin-top:7px}
+.bar-fill{height:100%;width:0;background:#18a83a;border-radius:8px;transition:width .35s}
+.env-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.env-card{padding:14px 12px;display:flex;align-items:center;gap:10px}
+.env-icon{font-size:27px}.env-name{font-size:12px;color:#777;margin-bottom:4px}.env-value{font-size:20px;font-weight:700}
+.other-card{padding:12px}
+.btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:50px;border:0;border-radius:10px;background:#2196f3;color:#fff;font-size:16px;text-decoration:none;font-weight:600}
+.signal{margin-top:10px;text-align:center;color:#666;font-size:13px}
+.footer{text-align:center;color:#999;font-size:12px;margin-top:18px}
+@media(max-width:380px){.zone-grid{grid-template-columns:minmax(0,1fr) 125px;gap:10px}.page{padding-left:10px;padding-right:10px}}
 </style>
 </head>
-
 <body>
+<div class="page">
+<h1>🌱 花园智能浇水</h1>
 
-<h2>🌱 智能浇水远程监控</h2>
+<div class="section-title">运行模式</div>
+<div class="box"><div id="plcMode" class="mode"><span class="gray">●</span> 模式读取中...</div></div>
 
-<div class="card">
-    <div>设备状态</div>
-    <div id="status" class="value offline">OFFLINE</div>
+<div class="section-title">浇水区域</div>
+<div id="zones"></div>
+
+<div class="section-title">空气温湿度</div>
+<div class="env-grid">
+  <div class="env-card"><div class="env-icon">🌡️</div><div><div class="env-name">空气温度</div><div class="env-value"><span id="airTemp">--.-</span>℃</div></div></div>
+  <div class="env-card"><div class="env-icon">💧</div><div><div class="env-name">空气湿度</div><div class="env-value"><span id="airHumidity">--.-</span>%</div></div></div>
 </div>
 
-<div class="card">
-  <div>当前工作模式</div>
-  <div id="mode" class="value">--</div>
-</div>
-    
-<div class="card">
-    <div>空气温度</div>
-    <div id="temp" class="value">-- ℃</div>
+<div class="section-title">其它</div>
+<div class="other-card">
+  <a class="btn" href="history.html">💧 查看土壤浇水记录</a>
+  <div class="signal">📶 WiFi 信号：<strong id="rssi">--</strong> dBm</div>
 </div>
 
-<div class="card">
-    <div>空气湿度</div>
-    <div id="hum" class="value">-- %RH</div>
-</div>
-
-<div class="card">
-    <div>WiFi 信号</div>
-    <div id="rssi" class="value">-- dBm</div>
-</div>
-
-<!-- ===== 1区 ===== -->
-<div class="card">
-    <div style="font-size:20px;font-weight:bold;margin-bottom:12px;">
-        1区
-    </div>
-
-    <div>
-        实际状态：
-        <span id="zone1Status" class="offline">停止</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        土壤湿度：
-        <span id="zone1Soil" style="font-weight:bold;">--.-</span> %
-    </div>
-
-    <div style="margin-top:10px;">
-        探头状态：
-        <span id="zone1SoilStatus" class="offline">OFFLINE</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次时间：
-        <span id="zone1LastTime">--</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次水量：
-        <span id="zone1LastWater">--</span> L
-    </div>
-</div>
-
-
-<!-- ===== 2区 ===== -->
-<div class="card">
-    <div style="font-size:20px;font-weight:bold;margin-bottom:12px;">
-        2区
-    </div>
-
-    <div>
-        实际状态：
-        <span id="zone2Status" class="offline">停止</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        土壤湿度：
-        <span id="zone2Soil" style="font-weight:bold;">--.-</span> %
-    </div>
-
-    <div style="margin-top:10px;">
-        探头状态：
-        <span id="zone2SoilStatus" class="offline">OFFLINE</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次时间：
-        <span id="zone2LastTime">--</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次水量：
-        <span id="zone2LastWater">--</span> L
-    </div>
-</div>
-
-
-<!-- ===== 3区 ===== -->
-<div class="card">
-    <div style="font-size:20px;font-weight:bold;margin-bottom:12px;">
-        3区
-    </div>
-
-    <div>
-        实际状态：
-        <span id="zone3Status" class="offline">停止</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        土壤湿度：
-        <span id="zone3Soil" style="font-weight:bold;">--.-</span> %
-    </div>
-
-    <div style="margin-top:10px;">
-        探头状态：
-        <span id="zone3SoilStatus" class="offline">OFFLINE</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次时间：
-        <span id="zone3LastTime">--</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次水量：
-        <span id="zone3LastWater">--</span> L
-    </div>
-</div>
-
-
-<!-- ===== 4区 ===== -->
-<div class="card">
-    <div style="font-size:20px;font-weight:bold;margin-bottom:12px;">
-        4区
-    </div>
-
-    <div>
-        实际状态：
-        <span id="zone4Status" class="offline">停止</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        土壤湿度：
-        <span id="zone4Soil" style="font-weight:bold;">--.-</span> %
-    </div>
-
-    <div style="margin-top:10px;">
-        探头状态：
-        <span id="zone4SoilStatus" class="offline">OFFLINE</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次时间：
-        <span id="zone4LastTime">--</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次水量：
-        <span id="zone4LastWater">--</span> L
-    </div>
-</div>
-
-
-<!-- ===== 5区 ===== -->
-<div class="card">
-    <div style="font-size:20px;font-weight:bold;margin-bottom:12px;">
-        5区
-    </div>
-
-    <div>
-        实际状态：
-        <span id="zone5Status" class="offline">停止</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        土壤湿度：
-        <span id="zone5Soil" style="font-weight:bold;">--.-</span> %
-    </div>
-
-    <div style="margin-top:10px;">
-        探头状态：
-        <span id="zone5SoilStatus" class="offline">OFFLINE</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次时间：
-        <span id="zone5LastTime">--</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次水量：
-        <span id="zone5LastWater">--</span> L
-    </div>
-</div>
-
-
-<!-- ===== 6区 ===== -->
-<div class="card">
-    <div style="font-size:20px;font-weight:bold;margin-bottom:12px;">
-        6区
-    </div>
-
-    <div>
-        实际状态：
-        <span id="zone6Status" class="offline">停止</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        土壤湿度：
-        <span id="zone6Soil" style="font-weight:bold;">--.-</span> %
-    </div>
-
-    <div style="margin-top:10px;">
-        探头状态：
-        <span id="zone6SoilStatus" class="offline">OFFLINE</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次时间：
-        <span id="zone6LastTime">--</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次水量：
-        <span id="zone6LastWater">--</span> L
-    </div>
-</div>
-
-
-<!-- ===== 7区 ===== -->
-<div class="card">
-    <div style="font-size:20px;font-weight:bold;margin-bottom:12px;">
-        7区
-    </div>
-
-    <div>
-        实际状态：
-        <span id="zone7Status" class="offline">停止</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        土壤湿度：
-        <span id="zone7Soil" style="font-weight:bold;">--.-</span> %
-    </div>
-
-    <div style="margin-top-top:10px;">
-        探头状态：
-        <span id="zone7SoilStatus" class="offline">OFFLINE</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次时间：
-        <span id="zone7LastTime">--</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次水量：
-        <span id="zone7LastWater">--</span> L
-    </div>
-</div>
-
-
-<!-- ===== 8区 ===== -->
-<div class="card">
-    <div style="font-size:20px;font-weight:bold;margin-bottom:12px;">
-        8区
-    </div>
-
-    <div>
-        实际状态：
-        <span id="zone8Status" class="offline">停止</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        土壤湿度：
-        <span id="zone8Soil" style="font-weight:bold;">--.-</span> %
-    </div>
-
-    <div style="margin-top:10px;">
-        探头状态：
-        <span id="zone8SoilStatus" class="offline">OFFLINE</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次时间：
-        <span id="zone8LastTime">--</span>
-    </div>
-
-    <div style="margin-top:10px;">
-        上次水量：
-        <span id="zone8LastWater">--</span> L
-    </div>
+<div id="mqttState" class="footer">正在连接远程设备...</div>
 </div>
 
 <script>
-const client = mqtt.connect(
-    "wss://broker.emqx.io:8084/mqtt"
-);
-
-client.on("connect", () => {
-
-    const el = document.getElementById("status");
-    el.innerText = "MQTT已连接";
-    el.className = "value online";
-    client.subscribe("garden/irrigation/system/status");
-    client.subscribe("garden/irrigation/environment/temperature");
-    client.subscribe("garden/irrigation/environment/humidity");
-    client.subscribe("garden/irrigation/system/rssi");
-    client.subscribe("garden/irrigation/zone1/status");
-client.subscribe("garden/irrigation/zone1/soil");
-client.subscribe("garden/irrigation/zone1/soilstatus");
-// ===== 2区 =====
-client.subscribe("garden/irrigation/zone2/status");
-client.subscribe("garden/irrigation/zone2/soil");
-client.subscribe("garden/irrigation/zone2/soilstatus");
-// ===== 3区 =====
-client.subscribe("garden/irrigation/zone3/status");
-client.subscribe("garden/irrigation/zone3/soil");
-client.subscribe("garden/irrigation/zone3/soilstatus");
-
-// ===== 4区 =====
-client.subscribe("garden/irrigation/zone4/status");
-client.subscribe("garden/irrigation/zone4/soil");
-client.subscribe("garden/irrigation/zone4/soilstatus");
-
-// ===== 5区 =====
-client.subscribe("garden/irrigation/zone5/status");
-client.subscribe("garden/irrigation/zone5/soil");
-client.subscribe("garden/irrigation/zone5/soilstatus");
-
-// ===== 6区 =====
-client.subscribe("garden/irrigation/zone6/status");
-client.subscribe("garden/irrigation/zone6/soil");
-client.subscribe("garden/irrigation/zone6/soilstatus");
-
-// ===== 7区 =====
-client.subscribe("garden/irrigation/zone7/status");
-client.subscribe("garden/irrigation/zone7/soil");
-client.subscribe("garden/irrigation/zone7/soilstatus");
-
-// ===== 8区 =====
-client.subscribe("garden/irrigation/zone8/status");
-client.subscribe("garden/irrigation/zone8/soil");
-client.subscribe("garden/irrigation/zone8/soilstatus");   
-    
-client.subscribe("garden/irrigation/system/mode");   
-
-// ===== 1～8区上次浇水记录 =====
-for (let zone = 1; zone <= 8; zone++) {
-    client.subscribe(
-        "garden/irrigation/zone" + zone + "/lasttime"
-    );
-
-    client.subscribe(
-        "garden/irrigation/zone" + zone + "/lastwater"
-    );
+const zones=document.getElementById("zones");
+for(let i=1;i<=8;i++){
+  zones.insertAdjacentHTML("beforeend",`
+  <div class="zone-card" id="zoneCard${i}">
+    <div class="zone-grid">
+      <div>
+        <div class="zone-title">区域 ${i}</div>
+        <div class="zone-status">实际状态：<span id="zoneStatus${i}" class="gray">● 读取中</span></div>
+        <div class="meta">上次时间：<span id="zoneLastTime${i}">--</span><br>上次水量：<span id="zoneLastWater${i}">--</span> L</div>
+      </div>
+      <div>
+        <div class="soil-title">土壤湿度</div>
+        <div id="zoneSoilStatus${i}" class="soil-status gray">● 读取中</div>
+        <div class="soil-value"><span id="zoneSoil${i}">--.-</span>%</div>
+        <div class="bar"><div id="zoneSoilBar${i}" class="bar-fill"></div></div>
+      </div>
+    </div>
+  </div>`);
 }
-    
+
+const client=mqtt.connect("wss://broker.emqx.io:8084/mqtt",{reconnectPeriod:3000,connectTimeout:10000});
+client.on("connect",()=>{
+  document.getElementById("mqttState").innerText="远程数据已连接";
+  ["garden/irrigation/system/status","garden/irrigation/system/mode","garden/irrigation/system/rssi",
+   "garden/irrigation/environment/temperature","garden/irrigation/environment/humidity"].forEach(t=>client.subscribe(t));
+  for(let i=1;i<=8;i++)["status","soil","soilstatus","lasttime","lastwater","enabled"].forEach(x=>client.subscribe(`garden/irrigation/zone${i}/${x}`));
 });
+client.on("close",()=>document.getElementById("mqttState").innerText="远程数据连接断开，正在重连...");
+client.on("error",()=>document.getElementById("mqttState").innerText="远程数据连接异常");
 
-client.on("error", (err) => {
-    console.log("MQTT WebSocket 错误:", err);
+client.on("message",(topic,message)=>{
+  const value=message.toString().trim();
 
-    const el = document.getElementById("status");
-    el.innerText = "MQTT连接错误";
-    el.className = "value offline";
+  if(topic==="garden/irrigation/system/mode"){
+    const e=document.getElementById("plcMode");
+    if(value==="MANUAL") e.innerHTML='<span class="blue">●</span> 手动模式';
+    else if(value==="AUTO") e.innerHTML='<span class="green">●</span> 自动模式';
+    else e.innerHTML='<span class="gray">●</span> 模式未知';
+    return;
+  }
+  if(topic==="garden/irrigation/environment/temperature"){document.getElementById("airTemp").innerText=value;return}
+  if(topic==="garden/irrigation/environment/humidity"){document.getElementById("airHumidity").innerText=value;return}
+  if(topic==="garden/irrigation/system/rssi"){document.getElementById("rssi").innerText=value;return}
+
+  const m=topic.match(/^garden\/irrigation\/zone([1-8])\/(status|soil|soilstatus|lasttime|lastwater|enabled)$/);
+  if(!m)return;
+  const z=m[1],type=m[2];
+
+  if(type==="enabled"){document.getElementById(`zoneCard${z}`).style.display=value==="ENABLED"?"block":"none";return}
+  if(type==="status"){
+    const e=document.getElementById(`zoneStatus${z}`);
+    if(value==="ON"){e.innerText="💧 浇水中";e.className="green"}else{e.innerText="● 停止";e.className="gray"}
+    return;
+  }
+  if(type==="soil"){
+    const n=parseFloat(value),ok=Number.isFinite(n);
+    document.getElementById(`zoneSoil${z}`).innerText=ok?n.toFixed(1):"--.-";
+    document.getElementById(`zoneSoilBar${z}`).style.width=(ok?Math.max(0,Math.min(100,n)):0)+"%";
+    return;
+  }
+  if(type==="soilstatus"){
+    const e=document.getElementById(`zoneSoilStatus${z}`);
+    if(value==="ONLINE"){e.innerText="● 在线";e.className="soil-status green"}else{e.innerText="● 离线";e.className="soil-status red"}
+    return;
+  }
+  if(type==="lasttime"){document.getElementById(`zoneLastTime${z}`).innerText=value;return}
+  if(type==="lastwater"){document.getElementById(`zoneLastWater${z}`).innerText=value;return}
 });
-
-client.on("close", () => {
-    console.log("MQTT WebSocket 已断开");
-
-    const el = document.getElementById("status");
-    el.innerText = "MQTT已断开";
-    el.className = "value offline";
-});
-    
-client.on("message", (topic, msg) => {
-
-    const value = msg.toString();
-
-
-    // ==================================================
-    // 设备状态
-    // ==================================================
-    if (topic === "garden/irrigation/system/status") {
-
-        const el = document.getElementById("status");
-
-        if (el) {
-            el.innerText = value;
-
-            if (value === "ONLINE") {
-                el.className = "value online";
-            } else {
-                el.className = "value offline";
-            }
-        }
-    }
-
-
-    // ==================================================
-    // 当前工作模式
-    // ==================================================
-    if (topic === "garden/irrigation/system/mode") {
-
-        const el = document.getElementById("mode");
-
-        if (el) {
-            if (value === "AUTO") {
-                el.innerText = "自动模式";
-                el.className = "value online";
-            }
-            else if (value === "MANUAL") {
-                el.innerText = "手动模式";
-                el.className = "value";
-            }
-        }
-    }
-
-
-    // ==================================================
-    // 空气温度
-    // ==================================================
-    if (topic === "garden/irrigation/environment/temperature") {
-
-        const el = document.getElementById("temp");
-
-        if (el) {
-            el.innerText = value + " ℃";
-        }
-    }
-
-
-    // ==================================================
-    // 空气湿度
-    // ==================================================
-    if (topic === "garden/irrigation/environment/humidity") {
-
-        const el = document.getElementById("hum");
-
-        if (el) {
-            el.innerText = value + " %RH";
-        }
-    }
-
-
-    // ==================================================
-    // WiFi 信号
-    // ==================================================
-    if (topic === "garden/irrigation/system/rssi") {
-
-        const el = document.getElementById("rssi");
-
-        if (el) {
-            el.innerText = value + " dBm";
-        }
-    }
-
-
-    // ==================================================
-    // 1～8区
-    // 实际状态 + 土壤湿度 + 探头状态
-    // 上次时间 + 上次水量
-    // ==================================================
-    for (let zone = 1; zone <= 8; zone++) {
-
-        const baseTopic =
-            "garden/irrigation/zone" + zone;
-
-
-        // ===== 实际运行状态 =====
-        if (topic === baseTopic + "/status") {
-
-            const el =
-                document.getElementById(
-                    "zone" + zone + "Status"
-                );
-
-            if (el) {
-                if (value === "ON") {
-                    el.innerText = "运行";
-                    el.className = "online";
-                } else {
-                    el.innerText = "停止";
-                    el.className = "offline";
-                }
-            }
-        }
-
-
-        // ===== 土壤湿度 =====
-        if (topic === baseTopic + "/soil") {
-
-            const el =
-                document.getElementById(
-                    "zone" + zone + "Soil"
-                );
-
-            if (el) {
-                el.innerText = value;
-            }
-        }
-
-
-        // ===== 土壤探头状态 =====
-        if (topic === baseTopic + "/soilstatus") {
-
-            const el =
-                document.getElementById(
-                    "zone" + zone + "SoilStatus"
-                );
-
-            if (el) {
-                el.innerText = value;
-
-                if (value === "ONLINE") {
-                    el.className = "online";
-                } else {
-                    el.className = "offline";
-                }
-            }
-        }
-
-
-        // ===== 上次浇水时间 =====
-        if (topic === baseTopic + "/lasttime") {
-
-            const el =
-                document.getElementById(
-                    "zone" + zone + "LastTime"
-                );
-
-            if (el) {
-                el.innerText = value;
-            }
-        }
-
-
-        // ===== 上次浇水量 =====
-        if (topic === baseTopic + "/lastwater") {
-
-            const el =
-                document.getElementById(
-                    "zone" + zone + "LastWater"
-                );
-
-            if (el) {
-                el.innerText = value;
-            }
-        }
-    }
-
-});
-    
 </script>
-
 </body>
 </html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>土壤浇水记录</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f3f3;font-family:Arial,"Microsoft YaHei",sans-serif;color:#222}
+.page{max-width:430px;margin:auto;padding:18px 16px 34px}
+h1{text-align:center;font-size:25px;margin:0 0 24px}
+.count{text-align:center;color:#777;font-size:16px;margin-bottom:18px}
+.back{display:flex;align-items:center;justify-content:center;width:100%;height:56px;border-radius:10px;background:#2196f3;color:white;text-decoration:none;font-size:18px;margin-bottom:10px}
+hr{border:0;border-top:1px solid #bbb;margin:10px 0}
+.record{background:#fff;border-radius:12px;padding:16px 18px;margin:12px 0;box-shadow:0 3px 10px rgba(0,0,0,.09)}
+.head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee;padding-bottom:12px;margin-bottom:14px;gap:10px}
+.zone{font-size:19px;font-weight:700}
+.time{font-size:13px;color:#888;text-align:right}
+.row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:15px;color:#555}
+.row b{font-size:16px;color:#111}
+.empty{text-align:center;color:#999;padding:30px 0}
+.status{text-align:center;color:#999;font-size:12px;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="page">
+<h1>土壤浇水记录</h1>
+<div class="count">当前记录数： <span id="count">--</span> 条</div>
+<a class="back" href="index.html">返回主页</a>
+<hr>
+<div id="records"><div class="empty">正在读取浇水记录...</div></div>
+<div id="state" class="status">正在连接远程设备...</div>
+</div>
+
+<script>
+let historyCount=0;
+const historyData={};
+
+function render(){
+  const box=document.getElementById("records");
+  document.getElementById("count").innerText=historyCount;
+
+  if(historyCount===0){
+    box.innerHTML='<div class="empty">暂无浇水记录</div>';
+    return;
+  }
+
+  let html="";
+  for(let i=0;i<historyCount;i++){
+    if(!historyData[i]) continue;
+    const p=historyData[i].split("|");
+    if(p.length<5) continue;
+
+    const zone=p[0],time=p[1],soil=p[2],duration=p[3],water=p[4];
+    html+=`
+      <div class="record">
+        <div class="head">
+          <div class="zone">区域 ${zone}</div>
+          <div class="time">${time}</div>
+        </div>
+        <div class="row"><span>🌱 浇水前湿度</span><b>${soil==="--"?"--":soil+" %"}</b></div>
+        <div class="row"><span>⏱ 浇水时长</span><b>${duration} 秒</b></div>
+        <div class="row"><span>💧 本次用水</span><b>${water} L</b></div>
+      </div>`;
+  }
+  box.innerHTML=html || '<div class="empty">正在读取浇水记录...</div>';
+}
+
+const client=mqtt.connect("wss://broker.emqx.io:8084/mqtt",{reconnectPeriod:3000,connectTimeout:10000});
+client.on("connect",()=>{
+  document.getElementById("state").innerText="远程数据已连接";
+  client.subscribe("garden/irrigation/history/count");
+  client.subscribe("garden/irrigation/history/+");
+});
+client.on("close",()=>document.getElementById("state").innerText="连接断开，正在重连...");
+client.on("error",()=>document.getElementById("state").innerText="远程数据连接异常");
+
+client.on("message",(topic,message)=>{
+  const value=message.toString().trim();
+
+  if(topic==="garden/irrigation/history/count"){
+    const n=parseInt(value,10);
+    historyCount=Number.isFinite(n)?Math.max(0,Math.min(50,n)):0;
+    render();
+    return;
+  }
+
+  const m=topic.match(/^garden\/irrigation\/history\/(\d+)$/);
+  if(!m)return;
+
+  const index=parseInt(m[1],10);
+  if(index>=0 && index<50){
+    historyData[index]=value;
+    render();
+  }
+});
+</script>
+</body>
+</html>
