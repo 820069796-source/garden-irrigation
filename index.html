@@ -40,6 +40,11 @@ body{
 </div>
 
 <div class="card">
+  <div>当前工作模式</div>
+  <div id="mode" class="value">--</div>
+</div>
+    
+<div class="card">
     <div>空气温度</div>
     <div id="temp" class="value">-- ℃</div>
 </div>
@@ -366,7 +371,9 @@ client.subscribe("garden/irrigation/zone7/soilstatus");
 // ===== 8区 =====
 client.subscribe("garden/irrigation/zone8/status");
 client.subscribe("garden/irrigation/zone8/soil");
-client.subscribe("garden/irrigation/zone8/soilstatus");    
+client.subscribe("garden/irrigation/zone8/soilstatus");   
+    
+client.subscribe("garden/irrigation/system/mode");   
 
 // ===== 1～8区上次浇水记录 =====
 for (let zone = 1; zone <= 8; zone++) {
@@ -409,7 +416,20 @@ client.on("message", (topic, msg) => {
             el.className = "value online";
         else
             el.className = "value offline";
+    // ===== 当前工作模式 =====
+if (topic === "garden/irrigation/system/mode") {
+
+    const el = document.getElementById("mode");
+
+    if (value === "AUTO") {
+        el.innerText = "自动模式";
+        el.className = "value online";
     }
+    else if (value === "MANUAL") {
+        el.innerText = "手动模式";
+        el.className = "value";
+    }
+}   
 
     if(topic === "garden/irrigation/environment/temperature")
         document.getElementById("temp").innerText = value + " ℃";
