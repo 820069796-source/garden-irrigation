@@ -98,8 +98,6 @@ body{
         <span id="zone2SoilStatus" class="offline">OFFLINE</span>
     </div>
 </div>
-
-<script>
     
 <script>
 const client = mqtt.connect(
@@ -107,7 +105,10 @@ const client = mqtt.connect(
 );
 
 client.on("connect", () => {
-document.getElementById("status").innerText = "MQTT已连接";
+
+    const el = document.getElementById("status");
+    el.innerText = "MQTT已连接";
+    el.className = "value online";
     client.subscribe("garden/irrigation/system/status");
     client.subscribe("garden/irrigation/environment/temperature");
     client.subscribe("garden/irrigation/environment/humidity");
@@ -123,10 +124,18 @@ client.subscribe("garden/irrigation/zone2/soilstatus");
 
 client.on("error", (err) => {
     console.log("MQTT WebSocket 错误:", err);
+
+    const el = document.getElementById("status");
+    el.innerText = "MQTT连接错误";
+    el.className = "value offline";
 });
 
 client.on("close", () => {
     console.log("MQTT WebSocket 已断开");
+
+    const el = document.getElementById("status");
+    el.innerText = "MQTT已断开";
+    el.className = "value offline";
 });
     
 client.on("message", (topic, msg) => {
