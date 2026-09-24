@@ -54,6 +54,7 @@ body{
     <div id="rssi" class="value">-- dBm</div>
 </div>
 
+<!-- ===== 1区 ===== -->
 <div class="card">
     <div style="font-size:20px;font-weight:bold;margin-bottom:12px;">
         1区
@@ -73,9 +74,18 @@ body{
         探头状态：
         <span id="zone1SoilStatus" class="offline">OFFLINE</span>
     </div>
+
+    <div style="margin-top:10px;">
+        上次时间：
+        <span id="zone1LastTime">--</span>
+    </div>
+
+    <div style="margin-top:10px;">
+        上次水量：
+        <span id="zone1LastWater">--</span> L
+    </div>
 </div>
 
-</div>
 
 <!-- ===== 2区 ===== -->
 <div class="card">
@@ -97,7 +107,18 @@ body{
         探头状态：
         <span id="zone2SoilStatus" class="offline">OFFLINE</span>
     </div>
+
+    <div style="margin-top:10px;">
+        上次时间：
+        <span id="zone2LastTime">--</span>
+    </div>
+
+    <div style="margin-top:10px;">
+        上次水量：
+        <span id="zone2LastWater">--</span> L
+    </div>
 </div>
+
 
 <!-- ===== 3区 ===== -->
 <div class="card">
@@ -118,6 +139,16 @@ body{
     <div style="margin-top:10px;">
         探头状态：
         <span id="zone3SoilStatus" class="offline">OFFLINE</span>
+    </div>
+
+    <div style="margin-top:10px;">
+        上次时间：
+        <span id="zone3LastTime">--</span>
+    </div>
+
+    <div style="margin-top:10px;">
+        上次水量：
+        <span id="zone3LastWater">--</span> L
     </div>
 </div>
 
@@ -142,6 +173,16 @@ body{
         探头状态：
         <span id="zone4SoilStatus" class="offline">OFFLINE</span>
     </div>
+
+    <div style="margin-top:10px;">
+        上次时间：
+        <span id="zone4LastTime">--</span>
+    </div>
+
+    <div style="margin-top:10px;">
+        上次水量：
+        <span id="zone4LastWater">--</span> L
+    </div>
 </div>
 
 
@@ -164,6 +205,16 @@ body{
     <div style="margin-top:10px;">
         探头状态：
         <span id="zone5SoilStatus" class="offline">OFFLINE</span>
+    </div>
+
+    <div style="margin-top:10px;">
+        上次时间：
+        <span id="zone5LastTime">--</span>
+    </div>
+
+    <div style="margin-top:10px;">
+        上次水量：
+        <span id="zone5LastWater">--</span> L
     </div>
 </div>
 
@@ -188,6 +239,16 @@ body{
         探头状态：
         <span id="zone6SoilStatus" class="offline">OFFLINE</span>
     </div>
+
+    <div style="margin-top:10px;">
+        上次时间：
+        <span id="zone6LastTime">--</span>
+    </div>
+
+    <div style="margin-top:10px;">
+        上次水量：
+        <span id="zone6LastWater">--</span> L
+    </div>
 </div>
 
 
@@ -207,9 +268,19 @@ body{
         <span id="zone7Soil" style="font-weight:bold;">--.-</span> %
     </div>
 
-    <div style="margin-top:10px;">
+    <div style="margin-top-top:10px;">
         探头状态：
         <span id="zone7SoilStatus" class="offline">OFFLINE</span>
+    </div>
+
+    <div style="margin-top:10px;">
+        上次时间：
+        <span id="zone7LastTime">--</span>
+    </div>
+
+    <div style="margin-top:10px;">
+        上次水量：
+        <span id="zone7LastWater">--</span> L
     </div>
 </div>
 
@@ -233,6 +304,16 @@ body{
     <div style="margin-top:10px;">
         探头状态：
         <span id="zone8SoilStatus" class="offline">OFFLINE</span>
+    </div>
+
+    <div style="margin-top:10px;">
+        上次时间：
+        <span id="zone8LastTime">--</span>
+    </div>
+
+    <div style="margin-top:10px;">
+        上次水量：
+        <span id="zone8LastWater">--</span> L
     </div>
 </div>
 
@@ -286,6 +367,18 @@ client.subscribe("garden/irrigation/zone7/soilstatus");
 client.subscribe("garden/irrigation/zone8/status");
 client.subscribe("garden/irrigation/zone8/soil");
 client.subscribe("garden/irrigation/zone8/soilstatus");    
+
+// ===== 1～8区上次浇水记录 =====
+for (let zone = 1; zone <= 8; zone++) {
+    client.subscribe(
+        "garden/irrigation/zone" + zone + "/lasttime"
+    );
+
+    client.subscribe(
+        "garden/irrigation/zone" + zone + "/lastwater"
+    );
+}
+    
 });
 
 client.on("error", (err) => {
@@ -419,6 +512,31 @@ for (let zone = 3; zone <= 8; zone++) {
             el.className = "online";
         else
             el.className = "offline";
+    }
+}    
+// ===== 1～8区上次浇水时间 / 水量 =====
+for (let zone = 1; zone <= 8; zone++) {
+
+    // 上次浇水时间
+    if (topic === "garden/irrigation/zone" + zone + "/lasttime") {
+
+        const el =
+            document.getElementById("zone" + zone + "LastTime");
+
+        if (el) {
+            el.innerText = value;
+        }
+    }
+
+    // 上次浇水量
+    if (topic === "garden/irrigation/zone" + zone + "/lastwater") {
+
+        const el =
+            document.getElementById("zone" + zone + "LastWater");
+
+        if (el) {
+            el.innerText = value;
+        }
     }
 }    
 });
