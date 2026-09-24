@@ -74,6 +74,32 @@ body{
         <span id="zone1SoilStatus" class="offline">OFFLINE</span>
     </div>
 </div>
+
+</div>
+
+<!-- ===== 2区 ===== -->
+<div class="card">
+    <div style="font-size:20px;font-weight:bold;margin-bottom:12px;">
+        2区
+    </div>
+
+    <div>
+        实际状态：
+        <span id="zone2Status" class="offline">停止</span>
+    </div>
+
+    <div style="margin-top:10px;">
+        土壤湿度：
+        <span id="zone2Soil" style="font-weight:bold;">--.-</span> %
+    </div>
+
+    <div style="margin-top:10px;">
+        探头状态：
+        <span id="zone2SoilStatus" class="offline">OFFLINE</span>
+    </div>
+</div>
+
+<script>
     
 <script>
 const client = mqtt.connect(
@@ -89,6 +115,10 @@ document.getElementById("status").innerText = "MQTT已连接";
     client.subscribe("garden/irrigation/zone1/status");
 client.subscribe("garden/irrigation/zone1/soil");
 client.subscribe("garden/irrigation/zone1/soilstatus");
+// ===== 2区 =====
+client.subscribe("garden/irrigation/zone2/status");
+client.subscribe("garden/irrigation/zone2/soil");
+client.subscribe("garden/irrigation/zone2/soilstatus");
 });
 
 client.on("error", (err) => {
@@ -148,8 +178,37 @@ if(topic === "garden/irrigation/zone1/soilstatus"){
     if(value === "ONLINE")
         el.className = "online";
     else
-        el.className = "offline";
+        el.className = "offline";    
 }
+// ===== 2区实际运行状态 =====
+if(topic === "garden/irrigation/zone2/status"){
+    const el = document.getElementById("zone2Status");
+
+    if(value === "ON"){
+        el.innerText = "运行";
+        el.className = "online";
+    }else{
+        el.innerText = "停止";
+        el.className = "offline";
+    }
+}
+
+// ===== 2区土壤湿度 =====
+if(topic === "garden/irrigation/zone2/soil"){
+    document.getElementById("zone2Soil").innerText = value;
+}
+
+// ===== 2区土壤探头状态 =====
+if(topic === "garden/irrigation/zone2/soilstatus"){
+    const el = document.getElementById("zone2SoilStatus");
+
+    el.innerText = value;
+
+    if(value === "ONLINE")
+        el.className = "online";
+    else
+        el.className = "offline";
+}    
 });
 </script>
 
