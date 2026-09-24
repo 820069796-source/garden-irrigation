@@ -408,156 +408,177 @@ client.on("message", (topic, msg) => {
 
     const value = msg.toString();
 
-    if(topic === "garden/irrigation/system/status"){
+
+    // ==================================================
+    // 设备状态
+    // ==================================================
+    if (topic === "garden/irrigation/system/status") {
+
         const el = document.getElementById("status");
-        el.innerText = value;
-
-        if(value === "ONLINE")
-            el.className = "value online";
-        else
-            el.className = "value offline";
-    // ===== 当前工作模式 =====
-if (topic === "garden/irrigation/system/mode") {
-
-    const el = document.getElementById("mode");
-
-    if (value === "AUTO") {
-        el.innerText = "自动模式";
-        el.className = "value online";
-    }
-    else if (value === "MANUAL") {
-        el.innerText = "手动模式";
-        el.className = "value";
-    } 
-
-    if(topic === "garden/irrigation/environment/temperature")
-        document.getElementById("temp").innerText = value + " ℃";
-
-    if(topic === "garden/irrigation/environment/humidity")
-        document.getElementById("hum").innerText = value + " %RH";
-
-    if(topic === "garden/irrigation/system/rssi")
-        document.getElementById("rssi").innerText = value + " dBm";
-    // ===== 1区实际运行状态 =====
-if(topic === "garden/irrigation/zone1/status"){
-    const el = document.getElementById("zone1Status");
-
-    if(value === "ON"){
-        el.innerText = "运行";
-        el.className = "online";
-    }else{
-        el.innerText = "停止";
-        el.className = "offline";
-    }
-}
-
-// ===== 1区土壤湿度 =====
-if(topic === "garden/irrigation/zone1/soil"){
-    document.getElementById("zone1Soil").innerText = value;
-}
-
-// ===== 1区土壤探头状态 =====
-if(topic === "garden/irrigation/zone1/soilstatus"){
-    const el = document.getElementById("zone1SoilStatus");
-
-    el.innerText = value;
-
-    if(value === "ONLINE")
-        el.className = "online";
-    else
-        el.className = "offline";    
-}
-// ===== 2区实际运行状态 =====
-if(topic === "garden/irrigation/zone2/status"){
-    const el = document.getElementById("zone2Status");
-
-    if(value === "ON"){
-        el.innerText = "运行";
-        el.className = "online";
-    }else{
-        el.innerText = "停止";
-        el.className = "offline";
-    }
-}
-
-// ===== 2区土壤湿度 =====
-if(topic === "garden/irrigation/zone2/soil"){
-    document.getElementById("zone2Soil").innerText = value;
-}
-
-// ===== 2区土壤探头状态 =====
-if(topic === "garden/irrigation/zone2/soilstatus"){
-    const el = document.getElementById("zone2SoilStatus");
-
-    el.innerText = value;
-
-    if(value === "ONLINE")
-        el.className = "online";
-    else
-        el.className = "offline";
-}
-// ===== 3～8区状态、土壤湿度、探头状态 =====
-for (let zone = 3; zone <= 8; zone++) {
-
-    // 实际运行状态
-    if (topic === "garden/irrigation/zone" + zone + "/status") {
-
-        const el = document.getElementById("zone" + zone + "Status");
-
-        if (value === "ON") {
-            el.innerText = "运行";
-            el.className = "online";
-        } else {
-            el.innerText = "停止";
-            el.className = "offline";
-        }
-    }
-
-    // 土壤湿度
-    if (topic === "garden/irrigation/zone" + zone + "/soil") {
-
-        const el = document.getElementById("zone" + zone + "Soil");
-        el.innerText = value;
-    }
-
-    // 探头状态
-    if (topic === "garden/irrigation/zone" + zone + "/soilstatus") {
-
-        const el = document.getElementById("zone" + zone + "SoilStatus");
-
-        el.innerText = value;
-
-        if (value === "ONLINE")
-            el.className = "online";
-        else
-            el.className = "offline";
-    }
-}    
-// ===== 1～8区上次浇水时间 / 水量 =====
-for (let zone = 1; zone <= 8; zone++) {
-
-    // 上次浇水时间
-    if (topic === "garden/irrigation/zone" + zone + "/lasttime") {
-
-        const el =
-            document.getElementById("zone" + zone + "LastTime");
 
         if (el) {
             el.innerText = value;
+
+            if (value === "ONLINE") {
+                el.className = "value online";
+            } else {
+                el.className = "value offline";
+            }
         }
     }
 
-    // 上次浇水量
-    if (topic === "garden/irrigation/zone" + zone + "/lastwater") {
 
-        const el =
-            document.getElementById("zone" + zone + "LastWater");
+    // ==================================================
+    // 当前工作模式
+    // ==================================================
+    if (topic === "garden/irrigation/system/mode") {
+
+        const el = document.getElementById("mode");
 
         if (el) {
-            el.innerText = value;
+            if (value === "AUTO") {
+                el.innerText = "自动模式";
+                el.className = "value online";
+            }
+            else if (value === "MANUAL") {
+                el.innerText = "手动模式";
+                el.className = "value";
+            }
         }
     }
-}    
+
+
+    // ==================================================
+    // 空气温度
+    // ==================================================
+    if (topic === "garden/irrigation/environment/temperature") {
+
+        const el = document.getElementById("temp");
+
+        if (el) {
+            el.innerText = value + " ℃";
+        }
+    }
+
+
+    // ==================================================
+    // 空气湿度
+    // ==================================================
+    if (topic === "garden/irrigation/environment/humidity") {
+
+        const el = document.getElementById("hum");
+
+        if (el) {
+            el.innerText = value + " %RH";
+        }
+    }
+
+
+    // ==================================================
+    // WiFi 信号
+    // ==================================================
+    if (topic === "garden/irrigation/system/rssi") {
+
+        const el = document.getElementById("rssi");
+
+        if (el) {
+            el.innerText = value + " dBm";
+        }
+    }
+
+
+    // ==================================================
+    // 1～8区
+    // 实际状态 + 土壤湿度 + 探头状态
+    // 上次时间 + 上次水量
+    // ==================================================
+    for (let zone = 1; zone <= 8; zone++) {
+
+        const baseTopic =
+            "garden/irrigation/zone" + zone;
+
+
+        // ===== 实际运行状态 =====
+        if (topic === baseTopic + "/status") {
+
+            const el =
+                document.getElementById(
+                    "zone" + zone + "Status"
+                );
+
+            if (el) {
+                if (value === "ON") {
+                    el.innerText = "运行";
+                    el.className = "online";
+                } else {
+                    el.innerText = "停止";
+                    el.className = "offline";
+                }
+            }
+        }
+
+
+        // ===== 土壤湿度 =====
+        if (topic === baseTopic + "/soil") {
+
+            const el =
+                document.getElementById(
+                    "zone" + zone + "Soil"
+                );
+
+            if (el) {
+                el.innerText = value;
+            }
+        }
+
+
+        // ===== 土壤探头状态 =====
+        if (topic === baseTopic + "/soilstatus") {
+
+            const el =
+                document.getElementById(
+                    "zone" + zone + "SoilStatus"
+                );
+
+            if (el) {
+                el.innerText = value;
+
+                if (value === "ONLINE") {
+                    el.className = "online";
+                } else {
+                    el.className = "offline";
+                }
+            }
+        }
+
+
+        // ===== 上次浇水时间 =====
+        if (topic === baseTopic + "/lasttime") {
+
+            const el =
+                document.getElementById(
+                    "zone" + zone + "LastTime"
+                );
+
+            if (el) {
+                el.innerText = value;
+            }
+        }
+
+
+        // ===== 上次浇水量 =====
+        if (topic === baseTopic + "/lastwater") {
+
+            const el =
+                document.getElementById(
+                    "zone" + zone + "LastWater"
+                );
+
+            if (el) {
+                el.innerText = value;
+            }
+        }
+    }
 
 });
     
