@@ -54,6 +54,27 @@ body{
     <div id="rssi" class="value">-- dBm</div>
 </div>
 
+<div class="card">
+    <div style="font-size:20px;font-weight:bold;margin-bottom:12px;">
+        1区
+    </div>
+
+    <div>
+        实际状态：
+        <span id="zone1Status" class="offline">停止</span>
+    </div>
+
+    <div style="margin-top:10px;">
+        土壤湿度：
+        <span id="zone1Soil" style="font-weight:bold;">--.-</span> %
+    </div>
+
+    <div style="margin-top:10px;">
+        探头状态：
+        <span id="zone1SoilStatus" class="offline">OFFLINE</span>
+    </div>
+</div>
+    
 <script>
 const client = mqtt.connect(
     "wss://broker.emqx.io:8084/mqtt"
@@ -65,6 +86,9 @@ client.on("connect", () => {
     client.subscribe("garden/irrigation/environment/temperature");
     client.subscribe("garden/irrigation/environment/humidity");
     client.subscribe("garden/irrigation/system/rssi");
+    client.subscribe("garden/irrigation/zone1/status");
+client.subscribe("garden/irrigation/zone1/soil");
+client.subscribe("garden/irrigation/zone1/soilstatus");
 });
 
 client.on("message", (topic, msg) => {
@@ -89,6 +113,35 @@ client.on("message", (topic, msg) => {
 
     if(topic === "garden/irrigation/system/rssi")
         document.getElementById("rssi").innerText = value + " dBm";
+    // ===== 1区实际运行状态 =====
+if(topic === "garden/irrigation/zone1/status"){
+    const el = document.getElementById("zone1Status");
+
+    if(value === "ON"){
+        el.innerText = "运行";
+        el.className = "online";
+    }else{
+        el.innerText = "停止";
+        el.className = "offline";
+    }
+}
+
+// ===== 1区土壤湿度 =====
+if(topic === "garden/irrigation/zone1/soil"){
+    document.getElementById("zone1Soil").innerText = value;
+}
+
+// ===== 1区土壤探头状态 =====
+if(topic === "garden/irrigation/zone1/soilstatus"){
+    const el = document.getElementById("zone1SoilStatus");
+
+    el.innerText = value;
+
+    if(value === "ONLINE")
+        el.className = "online";
+    else
+        el.className = "offline";
+}
 });
 </script>
 
