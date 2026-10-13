@@ -30,6 +30,9 @@ h1{text-align:center;font-size:25px;margin:4px 0 24px}
 .env-icon{font-size:27px}.env-name{font-size:12px;color:#777;margin-bottom:4px}.env-value{font-size:20px;font-weight:700}
 .other-card{padding:12px}
 .btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:50px;border:0;border-radius:10px;background:#2196f3;color:#fff;font-size:16px;text-decoration:none;font-weight:600}
+.btn:disabled{background:#a0b8c9;cursor:not-allowed}
+.refresh-btn{margin-top:12px;cursor:pointer}
+.refresh-msg{font-size:12px;color:#777;text-align:center;margin-top:8px;min-height:16px}
 .signal{margin-top:10px;text-align:center;color:#666;font-size:13px}
 .footer{text-align:center;color:#999;font-size:12px;margin-top:18px}
 @media(max-width:380px){.zone-grid{grid-template-columns:minmax(0,1fr) 125px;gap:10px}.page{padding-left:10px;padding-right:10px}}
@@ -38,28 +41,26 @@ h1{text-align:center;font-size:25px;margin:4px 0 24px}
 <body>
 <div class="page">
 <h1>🌱 花园智能浇水</h1>
-
 <div class="section-title">运行模式</div>
-<div class="box"><div id="plcMode" class="mode"><span class="gray">●</span> 模式读取中...</div></div>
-
+<div class="box">
+  <div id="plcMode" class="mode"><span class="gray">●</span> 模式读取中...</div>
+  <button type="button" id="refreshBtn" class="btn refresh-btn" onclick="refreshPLCState()">🔄 刷新PLC状态</button>
+  <div id="refreshMsg" class="refresh-msg"></div>
+</div>
 <div class="section-title">浇水区域</div>
 <div id="zones"></div>
-
 <div class="section-title">空气温湿度</div>
 <div class="env-grid">
   <div class="env-card"><div class="env-icon">🌡️</div><div><div class="env-name">空气温度</div><div class="env-value"><span id="airTemp">--.-</span>℃</div></div></div>
   <div class="env-card"><div class="env-icon">💧</div><div><div class="env-name">空气湿度</div><div class="env-value"><span id="airHumidity">--.-</span>%</div></div></div>
 </div>
-
 <div class="section-title">其它</div>
 <div class="other-card">
   <a class="btn" href="history.html">💧 查看土壤浇水记录</a>
   <div class="signal">📶 WiFi 信号：<strong id="rssi">--</strong> dBm</div>
 </div>
-
 <div id="mqttState" class="footer">正在连接远程设备...</div>
 </div>
-
 <script>
 const zones=document.getElementById("zones");
 for(let i=1;i<=8;i++){
@@ -81,6 +82,24 @@ for(let i=1;i<=8;i++){
   </div>`);
 }
 
+// 新增远程刷新请求：ESP32 必须订阅并处理该主题，不能只修改网页。
+const REFRESH_TOPIC="garden/irrigation/system/refresh/set";
+let refreshBusy=false;
+function refreshPLCState(){
+  const msg=document.getElementById("refreshMsg");
+  const btn=document.getElementById("refreshBtn");
+  if(refreshBusy)return;
+  if(!client.connected){msg.innerText="远程连接未建立，无法发送刷新请求";return;}
+  refreshBusy=true;
+  btn.disabled=true;
+  msg.innerText="正在发送刷新请求...";
+  client.publish(REFRESH_TOPIC,"REFRESH",{qos:1,retain:false},err=>{
+    msg.innerText=err?"刷新请求发送失败":"刷新请求已发送，等待设备更新状态";
+    // MQTT 发布成功只表示消息已交给 Broker，不代表 PLC 已完成刷新。
+    setTimeout(()=>{refreshBusy=false;btn.disabled=false;},3000);
+  });
+}
+
 const client=mqtt.connect("wss://broker.emqx.io:8084/mqtt",{reconnectPeriod:3000,connectTimeout:10000});
 client.on("connect",()=>{
   document.getElementById("mqttState").innerText="远程数据已连接";
@@ -90,10 +109,8 @@ client.on("connect",()=>{
 });
 client.on("close",()=>document.getElementById("mqttState").innerText="远程数据连接断开，正在重连...");
 client.on("error",()=>document.getElementById("mqttState").innerText="远程数据连接异常");
-
 client.on("message",(topic,message)=>{
   const value=message.toString().trim();
-
   if(topic==="garden/irrigation/system/mode"){
     const e=document.getElementById("plcMode");
     if(value==="MANUAL") e.innerHTML='<span class="blue">●</span> 手动模式';
@@ -104,11 +121,9 @@ client.on("message",(topic,message)=>{
   if(topic==="garden/irrigation/environment/temperature"){document.getElementById("airTemp").innerText=value;return}
   if(topic==="garden/irrigation/environment/humidity"){document.getElementById("airHumidity").innerText=value;return}
   if(topic==="garden/irrigation/system/rssi"){document.getElementById("rssi").innerText=value;return}
-
   const m=topic.match(/^garden\/irrigation\/zone([1-8])\/(status|soil|soilstatus|lasttime|lastwater|enabled)$/);
   if(!m)return;
   const z=m[1],type=m[2];
-
   if(type==="enabled"){document.getElementById(`zoneCard${z}`).style.display=value==="ENABLED"?"block":"none";return}
   if(type==="status"){
     const e=document.getElementById(`zoneStatus${z}`);
